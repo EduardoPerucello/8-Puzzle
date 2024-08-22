@@ -75,6 +75,7 @@ def é_resolvível(puzzle):
 def reiniciar_para_estado_embaralhado():
     global puzzle
     puzzle = estado_embaralhado_inicial  # Restaura o estado embaralhado inicial
+    historico_movimentos.append(([puzzle[i:i + 3] for i in range(0, len(puzzle), 3)], "Reiniciar para o estado embaralhado")) # Armazena o estado como parte do histórico
     update_buttons(puzzle)  # Atualiza os botões com o estado inicial
 
 # Função para reiniciar o jogo
