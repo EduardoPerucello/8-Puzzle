@@ -209,7 +209,7 @@ def dfs_solver(current_state, limite_inicial=2, incremento=2):
 
         # Se o limite máximo for atingido e nenhuma solução encontrada
     if not encontrou_solucao:
-        messagebox.showinfo("8 Puzzle", f"Não foi possível resolver o puzzle.")
+        messagebox.showinfo("8 Puzzle", "Sem solução com DFS")
 
 # Busca de A*
 def astar_solver():
