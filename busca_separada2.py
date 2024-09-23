@@ -28,22 +28,22 @@ def solucao(next_config):
 
 # Função para mover a peça
 def mover_peca(row, col, current_puzzle):
-    empty_pos = current_puzzle.index(0)  # Encontra a posição do espaço vazio
-    espaco_vazio, empty_col = divmod(empty_pos, 3)  # Converte a posição linear para coordenadas de linha e coluna
+    empty_pos = current_puzzle.index(0)
+    espaco_vazio, empty_col = divmod(empty_pos, 3)
 
-    # Verifica se o movimento é válido (o espaço vazio deve estar adjacente à peça movida)
     if abs(espaco_vazio - row) + abs(empty_col - col) == 1:
-        next_config = current_puzzle.copy()  # Cria uma cópia do estado atual
-        new_pos = row * 3 + col  # Calcula a nova posição da peça
-        # Troca a peça com o espaço vazio
+        next_config = current_puzzle.copy()
+        new_pos = row * 3 + col
         next_config[empty_pos], next_config[new_pos] = next_config[new_pos], next_config[empty_pos]
-
-        estado_antes = [current_puzzle[i:i + 3] for i in range(0, len(current_puzzle), 3)]  # Formata o estado em uma matriz 3x3
-        movimento = f"Mover espaço vazio de ({espaco_vazio}, {empty_col}) para ({row}, {col})"  # Descreve o movimento
-        historico_movimentos.append((estado_antes, movimento))  # Adiciona o movimento ao histórico
-
+        
+        if next_config != current_puzzle:  # Só adiciona ao histórico se houver mudança
+            estado_antes = [current_puzzle[i:i + 3] for i in range(0, len(current_puzzle), 3)]
+            movimento = f"Mover espaço vazio de ({espaco_vazio}, {empty_col}) para ({row}, {col})"
+            historico_movimentos.append((estado_antes, movimento))
+        
         return next_config
-    return current_puzzle  # Retorna o estado inalterado se o movimento não for válido
+
+    return current_puzzle
 
 # Função para atualizar a interface com o estado atual do quebra-cabeça
 def update_buttons(current_puzzle):

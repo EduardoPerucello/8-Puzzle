@@ -148,30 +148,32 @@ def gerar_proximos_estados(estado):
 
     return proximos_estados
 
-# Busca em largura
 def bfs_solver():
-    queue = deque([(current_state, [])])  # Inicializa a fila com o estado atual e um caminho vazio
-    visitados = set()
-    visitados.add(tuple(current_state))  # Marca o estado atual como visitado
-    
-    estados_visitados = 0  # Contador para rastrear o número de estados visitados
+    queue = deque([(current_state, [])])
+    visitados = set()  # Usado para evitar ciclos
+
+    estados_visitados = 0
 
     while queue:
         estados_visitados += 1
-        estado_atual, caminho = queue.popleft()  # Remove o estado da frente da fila
+        estado_atual, caminho = queue.popleft()
+
+        # Adiciona o estado atual ao caminho
+        caminho_atual = caminho + [estado_atual]
 
         if solucao(estado_atual):
-            messagebox.showinfo("8 Puzzle", f"Resolvido com BFS em {estados_visitados} estados visitados!")  # Mensagem de sucesso
-            mostrar_solucao(caminho + [estado_atual])  # Exibe a solução encontrada
+            messagebox.showinfo("8 Puzzle", f"Resolvido com BFS em {estados_visitados} estados visitados!")
+            mostrar_solucao(caminho_atual)  # Mostra apenas o caminho correto
             return
 
-        # Gera os próximos estados a partir do estado atual
+        # Gera os próximos estados
         for prox_estado, movimento in gerar_proximos_estados(estado_atual):
             if tuple(prox_estado) not in visitados:
-                visitados.add(tuple(prox_estado))  # Marca o próximo estado como visitado
-                queue.append((prox_estado, caminho + [estado_atual]))  # Adiciona o próximo estado à fila
+                visitados.add(tuple(prox_estado))  # Marca como visitado para evitar ciclos
+                queue.append((prox_estado, caminho_atual))  # Passa o caminho atualizado
 
-    messagebox.showinfo("8 Puzzle", "Sem solução com BFS")  # Mensagem se não encontrar solução
+    messagebox.showinfo("8 Puzzle", "Sem solução com BFS")
+
 
 # Busca em profundidade
 def dfs_solver(current_state, limite_inicial=2, incremento=2):
