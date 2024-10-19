@@ -1,161 +1,150 @@
-import numpy as np
 import random
+import numpy as np
 import matplotlib.pyplot as plt
 
-# Função para calcular a distância total de um caminho
-def calcular_distancia_total(caminho, pontos):
-    distancia = 0
+# Função para calcular a distância euclidiana entre dois pontos
+def distancia(ponto1, ponto2):
+    return np.sqrt((ponto1[0] - ponto2[0]) ** 2 + (ponto1[1] - ponto2[1]) ** 2)
+
+# Função de aptidão: Soma das distâncias percorridas no caminho
+def fitness(caminho, pontos):
+    distancia_total = 0
     for i in range(len(caminho)):
-        distancia += np.linalg.norm(pontos[caminho[i]] - pontos[caminho[(i + 1) % len(caminho)]])
-    return round(distancia, 2)
+        distancia_total += distancia(pontos[caminho[i]], pontos[caminho[(i + 1) % len(caminho)]])
+    return 1 / distancia_total  # Quanto menor a distância, maior o fitness
 
-# Inicialização da população
-def inicializar_populacao(pop_size, num_pontos):
-    populacao = []
-    for _ in range(pop_size):
-        individuo = list(range(num_pontos))
-        random.shuffle(individuo)
-        populacao.append(individuo)
-    return populacao
+# Gerar um caminho aleatório (cromossomo)
+def gerar_caminho(pontos):
+    caminho = list(range(len(pontos)))
+    random.shuffle(caminho)
+    return caminho
 
-# Crossover de Ordem (OX)
-def cruzamento_ox(pai1, pai2):
-    inicio, fim = sorted(random.sample(range(len(pai1)), 2))
-    filho = [None] * len(pai1)
+# Seleção por torneio
+def selecao(populacao, fitness_pop):
+    torneio = random.sample(list(zip(populacao, fitness_pop)), 3)
+    torneio.sort(key=lambda x: x[1], reverse=True)  # Ordena pelo melhor fitness
+    return torneio[0][0]
+
+# Crossover (Crossover de Ordem - OX)
+def crossover(pai1, pai2):
+    tamanho = len(pai1)
+    filho = [-1] * tamanho
+    inicio, fim = sorted(random.sample(range(tamanho), 2))
+    # # Definir índices de início e fim fixos
+    # inicio = 4  # Índice fixo de início
+    # fim = 23    # Índice fixo de fim (exemplo)
     
-    # Copia a fatia do pai1
     filho[inicio:fim] = pai1[inicio:fim]
-    
-    # Preenche o restante com a ordem do pai2
-    ptr = fim
+
     for gene in pai2:
         if gene not in filho:
-            if ptr >= len(pai2):
-                ptr = 0
-            filho[ptr] = gene
-            ptr += 1
+            for i in range(tamanho):
+                if filho[i] == -1:
+                    filho[i] = gene
+                    break
     return filho
 
-# Mutação por troca de posição
-def mutacao_swap(caminho, taxa_mutacao):
+# Função para inverter dois pontos adjacentes no caminho e verificar se melhora a distância total
+def melhorar_caminho_inversao(caminho, pontos):
+    melhorou = False
+    for i in range(1, len(caminho) - 1):
+        # Calcular a distância atual entre os pontos antes e depois de 'i'
+        dist_atual = (distancia(pontos[caminho[i-1]], pontos[caminho[i]]) + 
+                      distancia(pontos[caminho[i]], pontos[caminho[i+1]]))
+        
+        # Calcular a distância se invertermos os pontos 'i' e 'i+1'
+        dist_invertida = (distancia(pontos[caminho[i-1]], pontos[caminho[i+1]]) + 
+                          distancia(pontos[caminho[i+1]], pontos[caminho[i]]))
+        
+        # Se a inversão melhorar o caminho, aplica a inversão
+        if dist_invertida < dist_atual:
+            caminho[i], caminho[i+1] = caminho[i+1], caminho[i]
+            melhorou = True
+    return caminho, melhorou
+
+# Mutação (Troca de duas cidades e melhoria por inversão)
+def mutacao(caminho, taxa_mutacao, pontos):
     if random.random() < taxa_mutacao:
         i, j = random.sample(range(len(caminho)), 2)
         caminho[i], caminho[j] = caminho[j], caminho[i]
+    
+    # Aplicar melhoria por inversão se houver ganho
+    caminho, melhorou = melhorar_caminho_inversao(caminho, pontos)
+    
     return caminho
 
-# Seleção por Torneio
-def selecionar_torneio(populacao, pontos, k=3):
-    selecionados = random.sample(populacao, k)
-    selecionados.sort(key=lambda ind: calcular_distancia_total(ind, pontos))
-    return selecionados[0]
+# Função para criar uma nova geração, incluindo elitismo
+def nova_geracao_com_elitismo(populacao, fitness_pop, taxa_mutacao, pontos, elitismo=True):
+    nova_populacao = []
+    
+    if (elitismo):
+        # Preservar o melhor indivíduo da geração atual
+        melhor_indice = np.argmax(fitness_pop)
+        melhor_individuo = populacao[melhor_indice]
+        nova_populacao.append(melhor_individuo)
+    
+    # Preencher o restante da nova população
+    for _ in range(len(populacao) - len(nova_populacao)):
+        pai1 = selecao(populacao, fitness_pop)
+        pai2 = selecao(populacao, fitness_pop)
+        filho = crossover(pai1, pai2)
+        filho = mutacao(filho, taxa_mutacao, pontos)
+        nova_populacao.append(filho)
+    
+    return nova_populacao
 
-# Seleção por Roleta
-def selecionar_roleta(populacao, pontos):
-    fitness = [1 / calcular_distancia_total(ind, pontos) for ind in populacao]
-    total_fitness = sum(fitness)
-    roleta = [f / total_fitness for f in fitness]
-    escolha = random.choices(populacao, weights=roleta, k=1)[0]
-    return escolha
-
-# Algoritmo Genético com 100 gerações
-def algoritmo_genetico(pontos, pop_size=100, num_geracoes=100, taxa_mutacao=0.2):
-    populacao = inicializar_populacao(pop_size, len(pontos))
-    melhor_caminho = min(populacao, key=lambda c: calcular_distancia_total(c, pontos))
-    melhor_distancia = calcular_distancia_total(melhor_caminho, pontos)
+# Função principal do algoritmo genético com elitismo
+def algoritmo_genetico(pontos, tamanho_populacao=100, num_geracoes=50, taxa_mutacao=0.08, elitismo=True):
+    populacao = [gerar_caminho(pontos) for _ in range(tamanho_populacao)]
+    historico_fitness = []
 
     for geracao in range(num_geracoes):
-        nova_populacao = []
-        for _ in range(pop_size):
-            if random.random() < 0.5:
-                pai1 = selecionar_torneio(populacao, pontos)
-            else:
-                pai1 = selecionar_roleta(populacao, pontos)
-            pai2 = selecionar_roleta(populacao, pontos)
-            
-            filho = cruzamento_ox(pai1, pai2)
-            filho = mutacao_swap(filho, taxa_mutacao)
-            nova_populacao.append(filho)
+        fitness_pop = [fitness(caminho, pontos) for caminho in populacao]
+        melhor_fitness = max(fitness_pop)
+        melhor_caminho = populacao[fitness_pop.index(melhor_fitness)]
+        historico_fitness.append(1 / melhor_fitness)
 
-        populacao = nova_populacao
-        candidato = min(populacao, key=lambda c: calcular_distancia_total(c, pontos))
-        candidato_distancia = calcular_distancia_total(candidato, pontos)
-        
-        # Atualiza o melhor caminho e a melhor distância
-        if candidato_distancia < melhor_distancia:
-            melhor_caminho = candidato
-            melhor_distancia = candidato_distancia
+        print(f"Geração {geracao + 1}: Melhor distância: {1 / melhor_fitness}")
 
-        # Exibição a cada 20 gerações com duas casas decimais
-        if (geracao + 1) % 20 == 0:
-            print(f"Geração {geracao + 1}: Distância do melhor caminho: {melhor_distancia:.2f}")
+        populacao = nova_geracao_com_elitismo(populacao, fitness_pop, taxa_mutacao, pontos, elitismo)
 
-    return melhor_caminho, melhor_distancia
-
-# Função para gerar pontos uniformemente distribuídos
-def gerar_pontos_uniformemente_distribuidos(num_pontos):
-    return np.random.rand(num_pontos, 2) * 10  # Pontos em um espaço 10x10
+    return melhor_caminho, historico_fitness
 
 # Função para gerar pontos em um círculo
-def gerar_pontos_em_circulo(num_pontos):
-    angulos = np.linspace(0, 2 * np.pi, num_pontos, endpoint=False)
-    raio = 5  # Raio do círculo
-    x = raio * np.cos(angulos)
-    y = raio * np.sin(angulos)
-    return np.column_stack((x, y))
+def gerar_pontos_circulares(quantidade, raio=10):
+    angulos = np.linspace(0, 2 * np.pi, quantidade, endpoint=False)
+    return [(raio * np.cos(angulo), raio * np.sin(angulo)) for angulo in angulos]
 
-# Função para plotar os pontos e o caminho
-def plotar_resultado(pontos, caminho):
-    plt.figure(figsize=(8, 8))
-    plt.scatter(pontos[:, 0], pontos[:, 1], color='blue', label='Pontos')
+# Função para gerar pontos aleatórios (uniformemente distribuídos)
+def gerar_pontos_uniformes(quantidade, limite=10):
+    return [(random.uniform(-limite, limite), random.uniform(-limite, limite)) for _ in range(quantidade)]
+
+# Plotar os resultados
+def plotar_caminho(pontos, caminho, titulo="Caminho"):
+    caminho_completo = caminho + [caminho[0]]
+    x = [pontos[i][0] for i in caminho_completo]
+    y = [pontos[i][1] for i in caminho_completo]
     
-    # Plota o caminho
-    caminho_completo = np.append(caminho, caminho[0])  # Para fechar o ciclo
-    plt.plot(pontos[caminho_completo, 0], pontos[caminho_completo, 1], color='red', linewidth=2, label='Caminho')
-
-    for i, (x, y) in enumerate(pontos):
-        plt.text(x, y, f'{i}', fontsize=12, ha='right')
-
-    plt.title('Resultado do Algoritmo Genético - Problema do Caixeiro Viajante')
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.xlim(-6, 6)
-    plt.ylim(-6, 6)
-    plt.axhline(0, color='gray', lw=0.5, ls='--')
-    plt.axvline(0, color='gray', lw=0.5, ls='--')
-    plt.grid()
-    plt.legend()
+    plt.figure(figsize=(6, 6))
+    plt.plot(x, y, marker='o')
+    plt.title(titulo)
     plt.show()
 
-# Exemplo de uso
-if __name__ == "__main__":
-    # Cenário 1: Pontos uniformemente distribuídos
-    num_pontos_uniformes = random.randint(8, 10)  # Mínimo de 8 pontos
-    pontos_uniformes = gerar_pontos_uniformemente_distribuidos(num_pontos_uniformes)
-    pontos_uniformes_formatados = np.round(pontos_uniformes, 2)  # Formata os pontos com duas casas decimais
-    
-    print(f"\nCenário 1: Pontos uniformemente distribuídos")
-    print(f"Número de pontos: {num_pontos_uniformes}")
-    print("Pontos:\n", pontos_uniformes_formatados)
+# Testando com pontos dispostos em círculo
+pontos_circulares = gerar_pontos_circulares(25)
+melhor_caminho, historico = algoritmo_genetico(pontos_circulares)
 
-    melhor_caminho_uniformes, melhor_distancia_uniformes = algoritmo_genetico(pontos_uniformes, pop_size=100, num_geracoes=100, taxa_mutacao=0.3)
-    print("\nMelhor caminho após Algoritmo Genético:", melhor_caminho_uniformes)
-    print("Distância:", melhor_distancia_uniformes)
+plotar_caminho(pontos_circulares, melhor_caminho, "Caminho Circular")
 
-    # Plotar o resultado
-    plotar_resultado(pontos_uniformes, melhor_caminho_uniformes)
+# Testando com pontos aleatórios (uniformemente distribuídos)
+pontos_uniformes = gerar_pontos_uniformes(25)
+melhor_caminho, historico = algoritmo_genetico(pontos_uniformes)
 
-    # Cenário 2: Pontos em um círculo
-    num_pontos_circulo = random.randint(8, 10)  # Mínimo de 8 pontos
-    pontos_circulo = gerar_pontos_em_circulo(num_pontos_circulo)
-    pontos_circulo_formatados = np.round(pontos_circulo, 2)  # Formata os pontos com duas casas decimais
-    
-    print(f"\nCenário 2: Pontos em um círculo")
-    print(f"Número de pontos: {num_pontos_circulo}")
-    print("Pontos:\n", pontos_circulo_formatados)
+plotar_caminho(pontos_uniformes, melhor_caminho, "Caminho Uniforme")
 
-    melhor_caminho_circulo, melhor_distancia_circulo = algoritmo_genetico(pontos_circulo, pop_size=100, num_geracoes=100, taxa_mutacao=0.3)
-    print("\nMelhor caminho após Algoritmo Genético:", melhor_caminho_circulo)
-    print("Distância:", melhor_distancia_circulo)
-
-    # Plotar o resultado
-    plotar_resultado(pontos_circulo, melhor_caminho_circulo)
+# Plotar histórico de fitness (melhor distância ao longo das gerações)
+plt.plot(historico)
+plt.title("Evolução do Fitness ao Longo das Gerações")
+plt.xlabel("Geração")
+plt.ylabel("Melhor Distância")
+plt.show()
