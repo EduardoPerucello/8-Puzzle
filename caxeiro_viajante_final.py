@@ -1,6 +1,7 @@
 import random
 import numpy as np
 import matplotlib.pyplot as plt
+import keyboard
 
 # Função para calcular a distância euclidiana entre dois pontos
 def distancia(ponto1, ponto2):
@@ -87,7 +88,7 @@ def nova_geracao_com_elitismo(populacao, fitness_pop, taxa_mutacao, pontos, elit
 def algoritmo_genetico(pontos, tamanho_populacao=100, num_geracoes=50, taxa_mutacao=0.08, elitismo=True):
     populacao = [gerar_caminho(pontos) for _ in range(tamanho_populacao)]
     historico_fitness = []
-
+    pausado = False
     melhor_caminho = None
 
     # Configurações do gráfico do caminho
@@ -99,6 +100,15 @@ def algoritmo_genetico(pontos, tamanho_populacao=100, num_geracoes=50, taxa_muta
     linha, = plt.plot([], [], 'bo-', marker='o')  # Linha vazia para atualização
 
     for geracao in range(num_geracoes):
+        if keyboard.is_pressed("space"):
+            pausado = not pausado   
+            if pausado:
+                print("PAUSADO. Sequencia de pontos atual: ", melhor_caminho)
+            while pausado:
+                if keyboard.is_pressed("space"):
+                    pausado = False
+                    print("Retomando execução")
+                    break
         fitness_pop = [fitness(caminho, pontos) for caminho in populacao]
         melhor_fitness = max(fitness_pop)
         melhor_caminho = populacao[fitness_pop.index(melhor_fitness)]
@@ -110,13 +120,22 @@ def algoritmo_genetico(pontos, tamanho_populacao=100, num_geracoes=50, taxa_muta
 
         # Atualizar gráfico do caminho a cada 10 gerações
         if (geracao + 1) % 10 == 0:
+            plt.ioff()
             caminho_completo = melhor_caminho + [melhor_caminho[0]]  # Volta ao ponto inicial
             x = [pontos[i][0] for i in caminho_completo]
             y = [pontos[i][1] for i in caminho_completo]
             linha.set_xdata(x)
             linha.set_ydata(y)
             plt.draw()
-            plt.pause(1.0)  # Pausa para atualizar o gráfico
+            plt.pause(2.0)
+        else:
+            caminho_completo = melhor_caminho + [melhor_caminho[0]]  # Volta ao ponto inicial
+            x = [pontos[i][0] for i in caminho_completo]
+            y = [pontos[i][1] for i in caminho_completo]
+            linha.set_xdata(x)
+            linha.set_ydata(y)
+            plt.draw()
+            # plt.pause(0.3)  # Pausa para atualizar o gráfico
 
     plt.ioff()  # Desativa o modo interativo
     plt.show()  # Exibe o gráfico final
@@ -132,32 +151,19 @@ def gerar_pontos_circulares(quantidade, raio=10):
 def gerar_pontos_uniformes(quantidade, limite=10):
     return [(random.uniform(-limite, limite), random.uniform(-limite, limite)) for _ in range(quantidade)]
 
-# Plotar os resultados do caminho final
-def plotar_caminho(pontos, caminho, titulo="Caminho"):
-    caminho_completo = caminho + [caminho[0]]
-    x = [pontos[i][0] for i in caminho_completo]
-    y = [pontos[i][1] for i in caminho_completo]
-    
-    plt.figure(figsize=(6, 6))
-    plt.plot(x, y, marker='o')
-    plt.title(titulo)
-    plt.show()
-
 # Testando com pontos dispostos em círculo
 pontos_circulares = gerar_pontos_circulares(25)
 melhor_caminho, historico = algoritmo_genetico(pontos_circulares)
 
-plotar_caminho(pontos_circulares, melhor_caminho, "Caminho Circular")
-
 # Testando com pontos aleatórios (uniformemente distribuídos)
 pontos_uniformes = gerar_pontos_uniformes(25)
-melhor_caminho, historico = algoritmo_genetico(pontos_uniformes)
-
-plotar_caminho(pontos_uniformes, melhor_caminho, "Caminho Uniforme")
+melhor_caminho, historico2 = algoritmo_genetico(pontos_uniformes)
 
 # Plotar histórico de fitness (melhor distância ao longo das gerações)
-plt.plot(historico)
+plt.plot(historico, label="Caminho Circular")
+plt.plot(historico2, label="Caminho Uniforme")
 plt.title("Evolução do Fitness ao Longo das Gerações")
 plt.xlabel("Geração")
 plt.ylabel("Melhor Distância")
+plt.legend()
 plt.show()
